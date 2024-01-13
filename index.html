@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Discord Timestamp</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<style>
+		html,body {
+			margin: 0;
+			padding: 0;
+			background: #36393F;
+			color: #FFF;
+			font-family: Arial, sans-serif;
+		}
+
+		.container {
+			display: grid;
+			grid-template-columns: 1fr max-content;
+			width: 50rem;
+			margin: 0 auto;
+			border-right: 1px solid #7289DA;
+			border-left: 1px solid #7289DA;
+			padding: 1rem;
+			max-width: 75%;
+		}
+
+		.container > * {
+			margin: 0.2rem;
+		}
+
+		h1 {
+			font-size: 1.5rem;
+		}
+
+		#current {
+			grid-column: span 2;
+		}
+
+		input, select, button {
+			background: #2C2F33;
+			color: #FFF;
+			border: none;
+			border-radius: 4px;
+			padding: 0.5rem;
+			font-size: 1rem;
+		}
+
+		input[type="date"]::-webkit-calendar-picker-indicator {
+			filter: invert(1);
+		}
+
+		#code {
+			font-family: monospace;
+			width: 100%;
+			padding: 0.5rem;
+			background: #2C2F33;
+			color: #FFF;
+			border: none;
+			border-radius: 4px;
+		}
+
+		#copy {
+			background: #7289DA;
+			color: #FFF;
+			cursor: pointer;
+		}
+
+		#copy:hover {
+			background: #677BC4;
+		}
+
+		#preview {
+			font-size: 1.2rem;
+			padding-top: 0.5rem;
+		}
+
+		@media (max-width: 50rem) {
+			.container {
+				display: flex;
+				flex-direction: column;
+				width: 90%;
+			}
+
+			.container > * {
+				margin: 1rem 0.2rem;
+			}
+		}
+
+    .footer {
+    background-color: #36393F;
+    color: #fff;
+    padding: 10px;
+    text-align: center;
+    font-size: 14px;
+    font-family: Arial, sans-serif;
+  }
+
+  .footer a {
+    color: #7289DA;
+    text-decoration: none;
+  }
+
+  .footer a:hover {
+    text-decoration: underline;
+      }
+	</style>
+</head>
+<body>
+	<div class="container">
+		<h1>Discord Timestamp</h1>
+		<p>Enhance your Discord messages with a dynamic date-time display.<br> Customize the time and effortlessly copy the generated code.</p>
+	</div>
+	<div class="container">
+		<span>Date</span>
+		<input type="date" id="d">
+		<span>Time</span>
+		<input type="time" id="hm">
+		<span>Type</span>
+		<select id="t">
+			<option value="t">Short Time</option>
+			<option value="T">Long Time</option>
+			<option value="d">Short Date</option>
+			<option value="D">Long Date</option>
+			<option value="f">Long Date with Short Time</option>
+			<option value="F">Long Date with Day of Week and Short Time</option>
+			<option value="R" selected>Relative</option>
+		</select>
+		<span>Specified Time:</span>
+		<span id="preview"></span>
+		<input type="text" readonly id="code" title="Press Ctrl/Cmd+C to copy">
+		<button id="copy">Copy to Clipboard</button>
+		<button id="current">Reset to Current Time</button>
+	</div>
+	<script>
+		const dateInput = document.getElementById('d');
+		const timeInput = document.getElementById('hm');
+		const typeInput = document.getElementById('t');
+		const output = document.getElementById('code');
+		const copy = document.getElementById('copy');
+		const current = document.getElementById('current');
+		const preview = document.getElementById('preview');
+
+		dateInput.onchange = updateOutput;
+		timeInput.onchange = updateOutput;
+		typeInput.onchange = updateOutput;
+		output.onmouseover = function() { this.select(); }
+		copy.onclick = async () => {
+			updateOutput();
+			try {
+				await navigator.clipboard.writeText(output.value);
+				alert("Successfully copied");
+			} catch (e) {
+				alert(e);
+			}
+		}
+
+		const onload =_=> {
+			const now = new Date();
+			dateInput.value = `${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
+			timeInput.value = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+			updateOutput();
+		}
+		window.onload = onload;
+		current.onclick = onload;
+
+		const typeFormats = {
+			't': { timeStyle: 'short' },
+			'T': { timeStyle: 'medium' },
+			'd': { dateStyle: 'short' },
+			'D': { dateStyle: 'long' },
+			'f': { dateStyle: 'long', timeStyle: 'short' },
+			'F': { dateStyle: 'full', timeStyle: 'short' },
+			'R': { style: 'long', numeric: 'auto' },
+		};
+
+		function automaticRelativeDifference(d) {
+			const diff = -((new Date().getTime() - d.getTime())/1000)|0;
+			const absDiff = Math.abs(diff);
+			console.log(diff);
+			if (absDiff > 86400*30*10) {
+				return { duration: Math.round(diff/(86400*365)), unit: 'years' };
+			}
+			if (absDiff > 86400*25) {
+				return { duration: Math.round(diff/(86400*30)), unit: 'months' };
+			}
+			if (absDiff > 3600*21) {
+				return { duration: Math.round(diff/86400), unit: 'days' };
+			}
+			if (absDiff > 60*44) {
+				return { duration: Math.round(diff/3600), unit: 'hours' };
+			}
+			if (absDiff > 30) {
+				return { duration: Math.round(diff/60), unit: 'minutes' };
+			}
+			return { duration: diff, unit: 'seconds' };
+		}
+
+		function updateOutput() {
+			const selectedDate = new Date(dateInput.valueAsNumber + timeInput.valueAsNumber + new Date().getTimezoneOffset() * 60000);
+			console.log(selectedDate);
+			const ts = selectedDate.getTime().toString();
+			output.value = `<t:${ts.substr(0, ts.length - 3)}:${typeInput.value}>`;
+
+			if (['R'].includes(typeInput.value)) {
+				const formatter = new Intl.RelativeTimeFormat(navigator.language || 'en', typeFormats[typeInput.value] || {});
+				const format = automaticRelativeDifference(selectedDate);
+				preview.textContent = formatter.format(format.duration, format.unit);
+			} else {
+				const formatter = new Intl.DateTimeFormat(navigator.language || 'en', typeFormats[typeInput.value] || {});
+				preview.textContent = formatter.format(selectedDate);
+			}
+		}
+	</script>
+</body>
+
+  <footer class="footer">
+  <a href="https://naous.eu.org" target="_blank" rel="noopener noreferrer">mjnaous - 2024</a>
+  </footer>
+  </html>
+                                           
